@@ -1,6 +1,6 @@
 package org.apache.cordova.core;
 
-import java.util.Set;
+import java.util.List;
 
 import org.apache.cordova.CallbackContext;
 import org.apache.cordova.CordovaPlugin;
@@ -10,6 +10,8 @@ import org.json.JSONException;
 import com.parse.Parse;
 import com.parse.ParseInstallation;
 import com.parse.PushService;
+import com.parse.ParsePush;
+import android.util.Log;
 
 public class ParsePlugin extends CordovaPlugin {
     public static final String ACTION_INITIALIZE = "initialize";
@@ -18,6 +20,7 @@ public class ParsePlugin extends CordovaPlugin {
     public static final String ACTION_GET_SUBSCRIPTIONS = "getSubscriptions";
     public static final String ACTION_SUBSCRIBE = "subscribe";
     public static final String ACTION_UNSUBSCRIBE = "unsubscribe";
+    public static final String ACTION_PUSH = "pushOnChannel";
 
     @Override
     public boolean execute(String action, JSONArray args, CallbackContext callbackContext) throws JSONException {
@@ -46,6 +49,10 @@ public class ParsePlugin extends CordovaPlugin {
             this.unsubscribe(args.getString(0), callbackContext);
             return true;
         }
+    if (action.equals(ACTION_PUSH)){
+        this.pushOnChannel(callbackContext,args);
+        return true;    
+    }
         return false;
     }
 
@@ -56,7 +63,6 @@ public class ParsePlugin extends CordovaPlugin {
                     String appId = args.getString(0);
                     String clientKey = args.getString(1);
                     Parse.initialize(cordova.getActivity(), appId, clientKey);
-                    PushService.setDefaultPushCallback(cordova.getActivity(), cordova.getActivity().getClass());
                     ParseInstallation.getCurrentInstallation().saveInBackground();
                     callbackContext.success();
                 } catch (JSONException e) {
@@ -75,6 +81,21 @@ public class ParsePlugin extends CordovaPlugin {
         });
     }
 
+    private void pushOnChannel(final CallbackContext callbackContext,final JSONArray args){
+        cordova.getThreadPool().execute(new Runnable() {
+            public void run() {
+    String channel = args.getString(0);
+    String message = args.getString(1);
+                ParsePush push = new ParsePush();
+        push.setChannel(channel);
+                push.setMessage(message);
+        push.sendInBackground();
+        
+            callbackContext.success();
+            }
+        }); 
+    }
+
     private void getInstallationObjectId(final CallbackContext callbackContext) {
         cordova.getThreadPool().execute(new Runnable() {
             public void run() {
@@ -87,7 +108,7 @@ public class ParsePlugin extends CordovaPlugin {
     private void getSubscriptions(final CallbackContext callbackContext) {
         cordova.getThreadPool().execute(new Runnable() {
             public void run() {
-                 Set<String> subscriptions = PushService.getSubscriptions(cordova.getActivity());
+                 List<String> subscriptions = ParseInstallation.getCurrentInstallation().getList("channels");
                  callbackContext.success(subscriptions.toString());
             }
         });
@@ -96,7 +117,7 @@ public class ParsePlugin extends CordovaPlugin {
     private void subscribe(final String channel, final CallbackContext callbackContext) {
         cordova.getThreadPool().execute(new Runnable() {
             public void run() {
-                PushService.subscribe(cordova.getActivity(), channel, cordova.getActivity().getClass());
+                ParsePush.subscribeInBackground(channel);
                 callbackContext.success();
             }
         });
@@ -105,11 +126,10 @@ public class ParsePlugin extends CordovaPlugin {
     private void unsubscribe(final String channel, final CallbackContext callbackContext) {
         cordova.getThreadPool().execute(new Runnable() {
             public void run() {
-                PushService.unsubscribe(cordova.getActivity(), channel);
+                ParsePush.unsubscribeInBackground( channel);
                 callbackContext.success();
             }
         });
     }
 
 }
-
