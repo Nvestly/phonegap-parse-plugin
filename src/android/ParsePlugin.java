@@ -49,11 +49,11 @@ public class ParsePlugin extends CordovaPlugin {
             this.unsubscribe(args.getString(0), callbackContext);
             return true;
         }
-    if (action.equals(ACTION_PUSH)){
-        this.pushOnChannel(callbackContext,args);
-        return true;    
-    }
-        return false;
+        if (action.equals(ACTION_PUSH)){
+            this.pushOnChannel(callbackContext,args);
+            return true;    
+        }
+            return false;
     }
 
     private void initialize(final CallbackContext callbackContext, final JSONArray args) {
@@ -84,14 +84,18 @@ public class ParsePlugin extends CordovaPlugin {
     private void pushOnChannel(final CallbackContext callbackContext,final JSONArray args){
         cordova.getThreadPool().execute(new Runnable() {
             public void run() {
-    String channel = args.getString(0);
-    String message = args.getString(1);
-                ParsePush push = new ParsePush();
-        push.setChannel(channel);
-                push.setMessage(message);
-        push.sendInBackground();
-        
-            callbackContext.success();
+                try {
+                    String channel = args.getString(0);
+                    String message = args.getString(1);
+                    ParsePush push = new ParsePush();
+                    push.setChannel(channel);
+                    push.setMessage(message);
+                    push.sendInBackground();
+                    
+                    callbackContext.success();
+                } catch (JSONException e) {
+                        callbackContext.error("JSONException");
+                }
             }
         }); 
     }
